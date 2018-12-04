@@ -45,8 +45,10 @@ library("corrplot")
 ```
 
 ```{r functions1, include=FALSE}
+  # https://nsaunders.wordpress.com/2015/02/24/make-prettier-documents-by-reusing-chunks-in-rmarkdown/
 plotFunc <- function(workSet){
   workSetNums <- unlist(lapply(workSet, is.numeric))
+    # https://stackoverflow.com/questions/5863097/selecting-only-numeric-columns-from-a-data-frame
   plot_list <- vector(mode = 'list', length = 0)
   for (i in names(workSet[,workSetNums])){
     x <- workSet[,i]
@@ -113,7 +115,9 @@ workSet <- completeSet
 ### Merge
 ```{r}
 workSet <- Reduce(
+  # http://www.musgraveanalytics.com/blog/2018/2/12/how-to-merge-multiple-data-frames-using-base-r
   merge,
+  # https://stackoverflow.com/questions/1299871/how-to-join-merge-data-frames-inner-outer-left-right
   list(
     completeSet,
     zipcodeSet,
@@ -130,6 +134,7 @@ str(workSet)
 summary(workSet)
 workSetNums <- unlist(lapply(workSet, is.numeric))
 corrplot(
+  # http://www.sthda.com/english/wiki/visualize-correlation-matrix-using-correlogram
   cor(workSet[,workSetNums]), # use only numeric for correlations
   method = "color"
 )
@@ -152,6 +157,7 @@ plotFunc(workSet[,c("salary","age","credit")])
 
 ```{r}
 workSet <- subset(
+  # https://stats.idre.ucla.edu/r/faq/frequently-asked-questions-about-rhow-can-i-subset-a-data-setthe-r-program-as-a-text-file-for-all-the-code-on-this-page-subsetting-is-a-very-important-component/
   workSet,
   salary > min(salary) & salary < max(salary) &
     age > min(age) & age < max(age) &
