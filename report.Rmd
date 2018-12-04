@@ -1,0 +1,172 @@
+---
+title: "Predict Brand of Products"
+author: "Gerardo Parrello"
+date: "December 4, 2018"
+output: html_document
+---
+
+<!--
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+-->
+
+# Executive Summary
+# Report
+# Technical Report
+
+## Load libraries
+```{r}
+library("readr")
+library("rbokeh")
+# library("plotly")
+library("corrplot")
+```
+
+```{r functions1, include=FALSE}
+plotFunc <- function(workSet){
+  workSetNums <- unlist(lapply(workSet, is.numeric))
+  plot_list <- vector(mode = 'list', length = 0)
+  for (i in names(workSet[,workSetNums])){
+    x <- workSet[,i]
+    #hist_bins <- length(seq(min(x),max(x),by=((max(x) - min(x))/(length(x)-1))))/100
+      # https://stackoverflow.com/questions/16931895/exact-number-of-bins-in-histogram-in-r
+    hist_bins <- diff(range(x)) / (2 * IQR(x) / length(x)^(1/3))*4
+      # https://stats.stackexchange.com/questions/798/calculating-optimal-number-of-bins-in-a-histogram
+    plot_list[[i]] <- figure(xlab = NULL) %>%
+      ly_hist(x, freq=FALSE, breaks=hist_bins) %>%
+      ly_density(x)
+  }
+  plot_num <- length(plot_list)
+  total_columns = 2
+  grid_plot(
+    plot_list,
+    ncol = total_columns,
+    #nrow = plot_num,
+    #height = plot_height*plot_num/total_columns^2,
+    width = plot_width
+  )
+}
+
+remove_extremes <- function(dataset, attribute){
+  str(dataset)
+  dataset <- subset(
+    dataset,
+    attribute > min(attribute) & attribute < max(attribute)
+  )
+  return(dataset)
+}
+# workSet <- Reduce(remove_extremes, list("credit"))
+```
+
+```{r chunk1, ref.label="functions1", echo=FALSE}
+```
+
+## Set params
+```{r}
+setwd("/home/gerardo/Desktop/code/ubiqum_r/p2_t2")
+plot_scale = .9
+plot_width = 987 * plot_scale
+plot_height = 610 * plot_scale
+```
+
+## Load datasets
+```{r}
+completeSet <- read.csv("./data/CompleteResponses.csv")
+incompleteSet <- read.csv("./data/SurveyIncomplete.csv")
+```
+
+### Load dimension tables
+```{r}
+elevelSet <- read.csv("./data/elevel.csv")
+brandSet <- read.csv("./data/brand.csv")
+carSet <- read.csv("./data/car.csv")
+zipcodeSet <- read.csv("./data/zipcode.csv")
+```
+
+### Set working dataset
+```{r}
+workSet <- completeSet
+```
+
+### Merge
+```{r}
+workSet <- Reduce(
+  merge,
+  list(
+    completeSet,
+    zipcodeSet,
+    elevelSet,
+    carSet, 
+    brandSet
+  )
+)
+```
+
+## Get info
+```{r}
+str(workSet)
+summary(workSet)
+workSetNums <- unlist(lapply(workSet, is.numeric))
+corrplot(
+  cor(workSet[,workSetNums]), # use only numeric for correlations
+  method = "color"
+)
+```
+
+## Plot
+```{r}
+plotFunc(workSet[,c("salary","age","credit")])
+```
+
+## Preprocess
+```{r}
+# workSet$zipcode <- as.factor(workSet$zipcode)
+# workSet$brand <- as.factor(workSet$brand)
+# workSet$elevel <- as.factor(workSet$elevel)
+# str(workSet)
+```
+
+### Filter outliers
+
+```{r}
+workSet <- subset(
+  workSet,
+  salary > min(salary) & salary < max(salary) &
+    age > min(age) & age < max(age) &
+    credit > min(credit) & credit < max(credit)
+)
+str(workSet)
+plotFunc(workSet[,c("salary","age","credit")])
+```
+
+### Find duplicates?
+
+## Modeling
+
+### Create training/testing sets
+### Train
+### Apply
+### Performance analysis
+### Error analysis

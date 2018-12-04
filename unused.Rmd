@@ -1,0 +1,27 @@
+## Plot
+```{r}
+tools <- c("pan", "wheel_zoom", "box_zoom", "box_select", "reset")
+attr_names <- names(workSet)[1:2]
+attr_num <- length(attr_names)
+nms <- expand.grid(attr_names, rev(attr_names), stringsAsFactors = FALSE)
+splom_list <- vector("list", attr_num^2)
+for(ii in seq_len(nrow(nms))) {
+  splom_list[[ii]] <- figure(width = plot_width/attr_num,
+                             height = plot_width/attr_num,
+                             tools = tools,
+                             xlab = nms$Var1[ii],
+                             ylab = nms$Var2[ii]) %>%
+    ly_points(nms$Var1[ii],
+              nms$Var2[ii],
+              data = workSet,
+              #color = Species,
+              size = 5,
+              legend = FALSE)
+}
+grid_plot(splom_list, ncol = attr_num,
+          same_axes = TRUE,
+          link_data = TRUE,
+          height = plot_width,
+          width = plot_width)
+```
+
