@@ -1,76 +1,108 @@
 ---
 title: "Predict Brand of Products"
 author: "Gerardo Parrello"
-date: "December 4, 2018"
-output: html_document
+date: "December 11    , 2018"
+output:
+  pdf_document: default
+  html_document: default
+params:
+  CVfolds: 10
+  CVrepeats: 1
+  partition_size: 0.75
+  plot_height: 610
+  plot_scale: 0.9
+  plot_width: 987
+  seed: 8
+  tune_length: 2
+  working_dir: /home/gerardo/Desktop/code/ubiqum_r/p2_t2
 ---
 
-<!--
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
-```
-
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
-
--->
-
 # Executive Summary
-# Report
+## Preamble
+We have analyzed the data collected in the survey and have found that it is **not normally distributed** but uniformly so. This makes us believe the **survey was porbably not conducted using random selection of participants and therefore it is biased**.
+
+In so far that the definition of bias involves some kind of arbitrary or preconditioned selection as opposed to pure aleatority, it is not possible to craft unbiased data from biased data, since the whole concept of crafting requires selecting by arbitrary criteria.
+
+Therefore it is not possible for us to make confident predictions about brand preference *regarding the whole of the theoretic population of possible customers* since the data collected is not a representative sample of it.
+
+Despite this, we can also conclude that both the **complete and incomplete parts of the survey were conducted in the same manner**, taking into account the similarities in between their respective distributions. For this matter, we can categorize the complete dataset as a sample of the incomplete dataset, in so far it presents the same bias, and make predictions about the latter.
+
+## Conclusions
+For this purpose, we have determined the way in which the bias was introduced into the survey responses and have concluded that it was conducted by stratification: the initial sample was grouped prior to the survey and for each subgroup, the same amount of data points were collected, distorting in this way the distribution of the whole.
+
+Thus, we can't know the scale of each group in proportion to the rest but we can take apart and predict over each group as if it were a whole in itself. From this, we have observed three distinct populations based on age and salary:
+
+* 20 to 40 year olds, who prefer Acer if they have a salary between 50.000 and 100.000, and Sony otherwise (salaries from 20.000 to 50.000 and from 100.000 to 150.000)
+* 40 to 60 year olds, who prefer Acer if they have a salary between 80.000 and 130.000, and Sony otherwise (salaries from 20.000 to 80.000 and from 130.000 to 150.000)
+* 60 to 80 year olds, who prefer Acer if they have a salary between 20.000 and 80.000, and Sony otherwise (salaries from 80.000 to 150.000)
+
+
+## Recomendations
+In order to select the best partner for continued relations we propose a new study to determine the distribution of age and salary of the whole customer base. Then, the criteria described above can be applied to the most prominent group/s to determine the most profitable relation to pursue.
+
 # Technical Report
 
-## Load libraries
-```{r}
+## Set Environment
+
+### Load libraries
+```{r message=FALSE}
 library("readr")
 library("rbokeh")
-# library("plotly")
-library("corrplot")
+library("caret")
 ```
 
-```{r functions1, include=FALSE}
-  # https://nsaunders.wordpress.com/2015/02/24/make-prettier-documents-by-reusing-chunks-in-rmarkdown/
-plotFunc <- function(workSet){
+### Create custom functions
+```{r functions1, include=TRUE}
+  # http://bit.ly/2zVJQkd
+
+## PLOTTERS
+
+plotHistFunc <- function(workSet){
+  # To plot a grid of histograms
   workSetNums <- unlist(lapply(workSet, is.numeric))
-    # https://stackoverflow.com/questions/5863097/selecting-only-numeric-columns-from-a-data-frame
+    # http://bit.ly/2Bl3BSb
   plot_list <- vector(mode = 'list', length = 0)
   for (i in names(workSet[,workSetNums])){
     x <- workSet[,i]
     #hist_bins <- length(seq(min(x),max(x),by=((max(x) - min(x))/(length(x)-1))))/100
-      # https://stackoverflow.com/questions/16931895/exact-number-of-bins-in-histogram-in-r
-    hist_bins <- diff(range(x)) / (2 * IQR(x) / length(x)^(1/3))*4
-      # https://stats.stackexchange.com/questions/798/calculating-optimal-number-of-bins-in-a-histogram
+      # http://bit.ly/2QO5KiT
+    hist_bins <- diff(range(x)) / (2 * IQR(x) / length(x)^(1/3))
+      # http://bit.ly/2C5TXnN
     plot_list[[i]] <- figure(xlab = NULL) %>%
-      ly_hist(x, freq=FALSE, breaks=hist_bins) %>%
-      ly_density(x)
+      ly_hist(x, freq=TRUE, breaks=hist_bins) %>%
+      # ly_density(x) %>%
+      x_axis(number_formatter = "numeral", format = "0.") %>%
+      theme_axis("x", major_label_orientation = 45)
   }
   plot_num <- length(plot_list)
   total_columns = 2
-  grid_plot(
+  p <- grid_plot(
     plot_list,
     ncol = total_columns,
     #nrow = plot_num,
     #height = plot_height*plot_num/total_columns^2,
     width = plot_width
   )
+  return(p)
 }
 
+plotScatFunc <- function(x, y, color, xlab, ylab){
+  # To plot Scatter Plots
+  p <- figure(height = plot_height, width = plot_width, xlab = xlab, ylab = ylab) %>%
+   ly_points(x = x, y = y, color = color) %>%
+   y_axis(number_formatter = "numeral", format = "0.")
+  return(p)
+}
+
+plotBarFunc <- function(x){
+  # To plot Bar Charts
+  p <- figure(xlab = NULL, ylab = "Frequency") %>%
+    ly_bar(x = x) %>%
+    theme_axis("x", major_label_orientation = 45)
+  return(p)
+}
+
+# Not used, left here for legacy purposes
 remove_extremes <- function(dataset, attribute){
   str(dataset)
   dataset <- subset(
@@ -79,24 +111,59 @@ remove_extremes <- function(dataset, attribute){
   )
   return(dataset)
 }
-# workSet <- Reduce(remove_extremes, list("credit"))
+
+## TRAINERS
+trainRFFunc <- function(dataSet, RF_model_file, formula){
+  # This functions trains a Random Forests model
+  if(file.exists(RF_model_file)){
+    load(RF_model_file)
+  } else {
+    RF_model <- train(
+      #as.formula(paste(target, "~ .")),
+      formula,
+      data = dataSet,
+      method = "rf",
+      trControl = fitControl,
+      tuneLength = params$tune_length
+    )
+    save(RF_model, file = RF_model_file)
+  }
+  return(RF_model)
+}
+
+partSetFunc <- function(dataSet, target){
+  # This function creates training and testing sets
+  inTraining <- createDataPartition(
+  target,
+  p = params$partition_size,
+  list = FALSE
+)
+  return(list(
+    dataSet[inTraining,],
+    dataSet[-inTraining,]
+  ))
+}
+
+
 ```
 
 ```{r chunk1, ref.label="functions1", echo=FALSE}
 ```
 
-## Set params
+### Set params
 ```{r}
-setwd("/home/gerardo/Desktop/code/ubiqum_r/p2_t2")
-plot_scale = .9
-plot_width = 987 * plot_scale
-plot_height = 610 * plot_scale
+set.seed(params$seed)
+setwd(params$working_dir)
+plot_height = params$plot_height * params$plot_scale
+plot_width = params$plot_width * params$plot_scale
 ```
 
 ## Load datasets
 ```{r}
 completeSet <- read.csv("./data/CompleteResponses.csv")
+str(completeSet)
 incompleteSet <- read.csv("./data/SurveyIncomplete.csv")
+str(incompleteSet)
 ```
 
 ### Load dimension tables
@@ -107,17 +174,14 @@ carSet <- read.csv("./data/car.csv")
 zipcodeSet <- read.csv("./data/zipcode.csv")
 ```
 
-### Set working dataset
+### Add transformations
+We transform our datasets by setting labels according to the survey key, pulled from the custom dimension tables.
 ```{r}
-workSet <- completeSet
-```
-
-### Merge
-```{r}
+# Our complete survey dataset
 workSet <- Reduce(
-  # http://www.musgraveanalytics.com/blog/2018/2/12/how-to-merge-multiple-data-frames-using-base-r
+  # http://bit.ly/2Ercb5t
   merge,
-  # https://stackoverflow.com/questions/1299871/how-to-join-merge-data-frames-inner-outer-left-right
+  # http://bit.ly/2C72LKd
   list(
     completeSet,
     zipcodeSet,
@@ -126,53 +190,247 @@ workSet <- Reduce(
     brandSet
   )
 )
+str(workSet)
+
+workSet <- workSet[,c(
+  "salary",
+  "age",
+  "credit",
+  "region.name",
+  "ed.level.desc",
+  "car.brand",
+  "brand.name"
+)]
+str(workSet)
+
+# Our incomplete survey dataset
+workSet2 <- Reduce(
+  merge,
+  list(
+    incompleteSet,
+    zipcodeSet,
+    elevelSet,
+    carSet, 
+    brandSet
+  )
+)
+workSet2 <- workSet2[,c(
+  "salary",
+  "age",
+  "credit",
+  "region.name",
+  "ed.level.desc",
+  "car.brand",
+  "brand.name"
+)]
 ```
 
-## Get info
-```{r}
-str(workSet)
+<!-- ## Get info -->
+```{r eval=FALSE, include=FALSE}
 summary(workSet)
 workSetNums <- unlist(lapply(workSet, is.numeric))
 corrplot(
-  # http://www.sthda.com/english/wiki/visualize-correlation-matrix-using-correlogram
+  # http://bit.ly/2rwdk3i
   cor(workSet[,workSetNums]), # use only numeric for correlations
   method = "color"
 )
 ```
 
-## Plot
-```{r}
-plotFunc(workSet[,c("salary","age","credit")])
+## Previewing Data
+
+### Complete Set
+To see the distribution of the numeric variables of our complete survey dataset, we plot the following histograms:
+```{r warning=FALSE}
+plotHistFunc(workSet[,c("salary","age","credit")])
 ```
 
-## Preprocess
-```{r}
-# workSet$zipcode <- as.factor(workSet$zipcode)
-# workSet$brand <- as.factor(workSet$brand)
-# workSet$elevel <- as.factor(workSet$elevel)
-# str(workSet)
+In the same manner, we plot the following bar charts to analyze the distribution of our categorical variables:
+```{r warning=FALSE}
+grid_plot(
+    list(plotBarFunc(workSet$car.brand),
+    plotBarFunc(workSet$region.name),
+    plotBarFunc(workSet$ed.level.desc)),
+    ncol = 2,
+    width = plot_width
+  )
+```
+In both types we can see the uniformity in the distribution of the datapoints.
+
+We find a pattern when plotting Age against Salary, coloring by prefered Brand. We can see three disctinct age groups:
+```{r warning=FALSE}
+plotScatFunc(workSet$age, workSet$salary, workSet$brand.name, "Age", "Salary")
 ```
 
-### Filter outliers
+### Incomplete Set
 
-```{r}
+We plot the same graphs for our incomplete survey dataset (except for the scatter plot; we don't have brand data in this dataset), to check if it was conducted in the same manner:
+```{r warning=FALSE}
+plotHistFunc(workSet2[,c("salary","age","credit")])
+grid_plot(
+    list(plotBarFunc(workSet2$car.brand),
+    plotBarFunc(workSet2$region.name),
+    plotBarFunc(workSet2$ed.level.desc)),
+    ncol = 2,
+    #nrow = plot_num,
+    #height = plot_height*plot_num/total_columns^2,
+    width = plot_width
+  )
+```
+The same uniformity appears in this dataset, so we understand that both behave in the same manner.
+
+<!-- ### Filter extremes -->
+<!-- Not used, left here for legacy purposes -->
+```{r eval=FALSE, include=FALSE}
 workSet <- subset(
-  # https://stats.idre.ucla.edu/r/faq/frequently-asked-questions-about-rhow-can-i-subset-a-data-setthe-r-program-as-a-text-file-for-all-the-code-on-this-page-subsetting-is-a-very-important-component/
+  # http://bit.ly/2UC3dqY
   workSet,
   salary > min(salary) & salary < max(salary) &
     age > min(age) & age < max(age) &
     credit > min(credit) & credit < max(credit)
 )
 str(workSet)
-plotFunc(workSet[,c("salary","age","credit")])
+plotHistFunc(workSet[,c("salary","age","credit")])
+plotScatFunc(workSet$age, workSet$salary, workSet$brand.name, "Age", "Salary")
 ```
-
-### Find duplicates?
 
 ## Modeling
 
+<!-- ### Sampling -->
+<!-- Not used, left here for legacy purposes -->
+```{r eval=FALSE, include=FALSE}
+sample_size <- .1
+ds_rows <- nrow(workSet)
+workSet <- workSet[
+  sample(
+    1:ds_rows,
+    round(sample_size*ds_rows),
+    replace = FALSE
+  ),
+]
+```
+
 ### Create training/testing sets
+```{r eval=TRUE}
+dataSet <- workSet
+splitSets <- partSetFunc(dataSet, dataSet$brand.name)
+training <- splitSets[[1]]
+testing <- splitSets[[2]]
+```
+
 ### Train
-### Apply
-### Performance analysis
-### Error analysis
+To get our most important predictors, we train a Random Forest model using Repeated Cross Validation with `r params$CVfolds` folds and `r params$CVrepeats` repeat, subsetting randomly and optimizing parameters automatically with a tune length of `r params$tune_length`.
+```{r eval=TRUE}
+fitControl <- trainControl(
+  method = "repeatedcv",
+  number = params$CVfolds,
+  repeats = params$CVrepeats,
+  search = "random"
+)
+
+RF_model <- trainRFFunc(
+  training,
+  "./RFmodel.rba",
+  brand.name ~ .
+)
+```
+
+We check the accuracy and Kappa statistics of our model to check if it is performing accordingly:
+```{r}
+round(postResample(
+  predict(RF_model, testing),
+  testing$brand.name
+), 2)
+```
+
+From the following list, we have selected only the topmost attribute as a predictor for future models:
+```{r}
+varImp(RF_model)
+```
+
+<!-- Not used nor working, left here for further review -->
+```{r eval=FALSE, include=FALSE}
+C5_model <- train(
+  #as.formula(paste("brand.name", "~ .")),
+  brand.name ~ age + salary,
+  data = dataSet,
+  method = "C5.0", # Not working in R 3.3
+  trControl = fitControl,
+  tuneLength = params$tune_length
+)
+# str(C5_model)
+C5_model$results
+```
+
+## Subsetting
+We select Salary as our only predictor (Age becomes irrelevant after subsetting) and subset our complete data in the surveyed observed populations: ages 20 to 40, 40 to 60 and 60 to 80. We then train one model for each group and check performance metrics:
+```{r warning=FALSE, eval=TRUE}
+subSets <- list(
+  list(subset(
+    workSet,
+    age >= min(age) & age < 40
+  ), "./RFmodel_select_pop1.rba"),
+  list(subset(
+    workSet,
+    age >= 40 & age < 60
+  ), "./RFmodel_select_pop2.rba"),
+  list(subset(
+    workSet,
+    age >= 60 & age <= max(age)
+  ), "./RFmodel_select_pop3.rba")
+)
+for(item in subSets){
+  dataSet <- item[[1]]
+  file <- item[[2]]
+  # Split into training and testing
+  splitSets <- partSetFunc(dataSet, dataSet$brand.name)
+  training <- splitSets[[1]]
+  testing <- splitSets[[2]]
+  # Train model
+  RF_model <- trainRFFunc(
+    training,
+    file,
+    brand.name ~ salary
+  )
+  # Output results
+  cat("Subset with ages ranging from ", min(dataSet$age), " to ", max(dataSet$age), "\n")
+  cat("Performance for training set:\n")
+  print(round(RF_model$results, 2))
+  cat("Performance for testing set:\n")
+  print(round(postResample(
+    predict(RF_model, testing),
+    testing$brand.name
+  ), 2))
+  cat("\n")
+}
+```
+
+### Applying on incomplete dataset
+Once we have our trained models, we subset our incomplete survey dataset into the same groups and apply the models over them. Finally, we make a union of the subsets with the included prediction and plot it, showing the same pattern observed before:
+```{r}
+subSets <- list(
+  list(subset(
+    workSet2,
+    age >= min(age) & age < 40
+  ), "./RFmodel_select_pop1.rba"),
+  list(subset(
+    workSet2,
+    age >= 40 & age < 60
+  ), "./RFmodel_select_pop2.rba"),
+  list(subset(
+    workSet2,
+    age >= 60 & age <= max(age)
+  ), "./RFmodel_select_pop3.rba")
+)
+finalSet <- workSet2[0,] # empty dataset
+for(item in subSets){
+  dataSet <- item[[1]]
+  file <- item[[2]]
+  # Load model
+  load(file)
+  # Apply model
+  dataSet$brand.name <- predict(RF_model, dataSet)
+  # Union all subsets
+  finalSet <- rbind(finalSet, dataSet)
+}
+plotScatFunc(finalSet$age, finalSet$salary, finalSet$brand.name, "Age", "Salary")
+```
