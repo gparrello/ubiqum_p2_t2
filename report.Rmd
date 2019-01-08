@@ -49,6 +49,7 @@ In order to select the best partner for continued relations we propose a new stu
 library("readr")
 library("rbokeh")
 library("caret")
+# pacman::p_load("readr", "rbokeh", "caret")
 ```
 
 ### Create custom functions
