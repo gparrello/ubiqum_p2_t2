@@ -3,8 +3,8 @@ title: "Predict Brand of Products"
 author: "Gerardo Parrello"
 date: "December 11    , 2018"
 output:
-  pdf_document: default
   html_document: default
+  pdf_document: default
 params:
   CVfolds: 10
   CVrepeats: 1
