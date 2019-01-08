@@ -11,4 +11,5 @@
 *.Rmd		text
 *.R		text
 
-index.html linguist-vendored
+index.html	linguist-vendored
+*.rba		binary
